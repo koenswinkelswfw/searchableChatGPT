@@ -1,0 +1,3372 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Make Your ChatGPT Conversations Searchable</title>
+		<!-- Add JSZip library -->
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.7.1/jszip.min.js"></script>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+		<style>
+			body {
+				display: flex;
+				flex-direction: column;
+				box-sizing: border-box;
+				font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+					Roboto, 'Helvetica Neue', Arial, sans-serif;
+				background-color: #fff;
+				color: #323232;
+				max-width: 800px;
+				margin: 0 auto;
+				padding: 1rem;
+				line-height: 1.3;
+				font-size: 14px;
+			}
+
+			h1,
+			h2,
+			h3,
+			h4,
+			h5,
+			h6 {
+				margin: 0.25em 0 0.25em 0.5em;
+				font-weight: bold;
+			}
+
+			h1 {
+				font-size: 1.3em;
+			}
+
+			h2 {
+				font-size: 1.2em;
+			}
+
+			h3 {
+				font-size: 1.1em;
+			}
+
+			h4 {
+				font-size: 1em;
+			}
+
+			p {
+				margin: 0.3em 0;
+			}
+
+			ul,
+			ol {
+				margin: 0.5em 0 0.5em 1em;
+				padding-left: 1.5em;
+			}
+
+			li {
+				margin: 0.5em 0;
+			}
+
+			a {
+				color: #007bff;
+				text-decoration: none;
+			}
+
+			a:hover {
+				text-decoration: none;
+			}
+
+			blockquote {
+				margin: 0.5em 0;
+				padding-left: 1em;
+				color: #555;
+			}
+
+			hr {
+				border: none;
+				border-top: 1px solid #ccc;
+				margin: 0.5em 0;
+			}
+
+			code {
+				font-family: monospace;
+				font-size: 0.9em;
+				border-radius: 0.1em;
+				background-color: #efefef;
+				padding: 0 0.25em 0.1em 0.25em;
+			}
+
+			pre {
+				background-color: #efefef;
+				padding: 1em;
+				overflow-x: auto;
+				font-family: monospace;
+				font-size: 0.9em;
+				margin: 0.25em 0 0 1em;
+			}
+
+			div {
+				margin-bottom: 0.5em;
+			}
+
+			label {
+				color: #323232;
+				margin: 0 0.5em 0 0.8em;
+				font-size: 0.9em;
+			}
+
+			input {
+				margin-left: 0.5em;
+				margin-right: 0.5em;
+			}
+
+			img {
+				max-width: 100%;
+			}
+
+			.script {
+				border: none;
+				font-size: 0.9em;
+				margin-left: 1em;
+				padding: 0 1em;
+			}
+
+			.hidden {
+				display: none;
+			}
+
+			.custom-button {
+				display: inline-flex;
+				padding: 0.2em 0.35em;
+				margin-left: 2em;
+				border-radius: 0.3em;
+				background-color: #859ebf;
+				color: white;
+				font-size: 1em;
+				cursor: pointer;
+				align-items: center;
+				justify-content: center;
+				text-decoration: none;
+				border: none;
+			}
+
+			.custom-button.inactive {
+				opacity: 0.3;
+				cursor: default;
+			}
+
+			.fileUploadRow {
+				display: flex;
+				flex-direction: row;
+				margin: 0.15em 0 0.15em 1em;
+				justify-content: flex-start;
+				align-items: center;
+				gap: 0.6em;
+			}
+
+			#selectedFile {
+				all: initial;
+				font-family: monospace;
+				color: #859ebf;
+				font-size: 1em;
+			}
+
+			#fileInput {
+				display: none;
+			}
+
+			.summary {
+				margin-top: 1em;
+			}
+
+			#logDiv {
+				display: none;
+				text-align: left;
+				background-color: #efefef;
+				color: black;
+				padding: 1em;
+				margin: 0.5em;
+				max-height: 600px;
+				overflow-y: auto;
+			}
+
+			#searchTutorial,
+			#metaDataTutorial {
+				display: none;
+				text-align: left;
+				background-color: white;
+				color: black;
+				padding: 0;
+				margin: 0;
+			}
+
+			.section {
+				background-color: white;
+				padding: 0.25em;
+				margin: 0.25em 0 0.25em 0;
+			}
+
+			.step {
+				font-size: 1.1em;
+				font-weight: bold;
+				margin-bottom: 0.5em;
+			}
+
+			.emphasis {
+				letter-spacing: 0.05em;
+			}
+
+			.link {
+				cursor: pointer;
+				text-decoration: none;
+			}
+
+			.link-p {
+				margin-top: 2em;
+				margin-left: 2em;
+				padding: 0 0.25em 0.1em 0.25em;
+				border: 0.07em solid #859ebf;
+				border-radius: 0.3em;
+				color: #859ebf;
+				background-color: white;
+				font-size: 1em;
+				cursor: pointer;
+			}
+
+			.link-h2 {
+				margin-top: 2em;
+				margin-left: 1em;
+				font-size: 1.2em;
+				font-weight: bold;
+				color: #859ebf;
+				cursor: pointer;
+			}
+
+			#toggleWindows,
+			#toggleMac,
+			#toggleLinux,
+			#toggleNoteApps,
+			toggleSearch {
+				display: flex;
+			}
+
+			#divNoteApps,
+			#divWindows,
+			#divMac,
+			#divLinux,
+			#divSearch {
+				background-color: #ffffff;
+				padding: 0.25em 1em;
+				font-size: 0.9em;
+				margin: 0.25em 0 1em 1em;
+				border-radius: 0.2em;
+				box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+			}
+
+			#hideWindows,
+			#hideMac,
+			#hideLinux {
+				float: left;
+				margin-top: 1em;
+				margin-left: 2em;
+				color: #859ebf;
+				background-color: white;
+				font-size: 1em;
+				cursor: pointer;
+			}
+
+			#hideNoteApps {
+				float: left;
+				margin-top: 0;
+				margin-left: 2em;
+				color: #859ebf;
+				background-color: white;
+				font-size: 1em;
+				cursor: pointer;
+			}
+
+			#hideSearch {
+				float: left;
+				margin-top: 0;
+				margin-left: 2em;
+				color: #859ebf;
+				background-color: white;
+				font-size: 1em;
+				cursor: pointer;
+			}
+
+			.message-box {
+				position: fixed;
+				bottom: 20px;
+				right: 20px;
+				padding: 0.25em;
+				border-radius: 0.3em;
+				background-color: #007bff;
+				color: white;
+				font-size: 12px;
+				z-index: 1000;
+				box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+				display: none;
+			}
+
+			.message-box.error {
+				background-color: #ff824c;
+				color: black;
+			}
+
+			.message-box.success {
+				background-color: #e9e9e9;
+				color: black;
+			}
+
+			.code-block {
+				position: relative;
+				margin-bottom: 0.5rem;
+			}
+
+			.copy-button {
+				position: absolute;
+				top: 7px;
+				right: 7px;
+				background-color: #7a7a7a;
+				color: white;
+				border: none;
+				padding: 2px 6px 3px 6px;
+				cursor: pointer;
+				border-radius: 5px;
+				font-size: 12px;
+			}
+
+			.copy-button:hover {
+				background-color: #7a7a7a;
+			}
+
+			@keyframes spin {
+				0% {
+					transform: rotate(0deg);
+				}
+				100% {
+					transform: rotate(360deg);
+				}
+			}
+
+			@media (max-width: 600px) {
+				body {
+					padding: 0.5em;
+				}
+				h1 {
+					font-size: 1.5em;
+				}
+				h2 {
+					font-size: 1.2em;
+				}
+			}
+		</style>
+	</head>
+
+	<body>
+		<h1>How to Make Your ChatGPT Conversation History Searchable</h1>
+
+		<div class="section">
+			<p>
+				If you're a frequent chatGPT user, you probably have a sizable
+				conversation archive by now. You may have noticed how challenging it can
+				be to search through that archive. While the mobile app has a built-in
+				search feature, it is limited, and the website lacks a search function
+				altogether.
+			</p>
+
+			<p>
+				Fortunately, there's a simple way to make your archive fully searchable
+				and even perform advanced searches. You can also use this method to
+				store your searchable chatGPT archive in any note-taking or organizing
+				app that supports the following formats:
+			</p>
+
+			<ul>
+				<li>.md (markdown)</li>
+				<li>.enex (evernote)</li>
+				<li>.html</li>
+			</ul>
+
+			<p>
+				To achieve this, you’ll convert the single
+				<code>conversations.json</code> file (which contains your entire
+				archive) into individual files for each conversation. Here's how:
+			</p>
+		</div>
+
+		<!-- Step 1 -->
+		<div class="section">
+			<div class="step">Step 1: Download Your ChatGPT Archive</div>
+			<ul>
+				<li>
+					In your
+					<a href="https://www.chatgpt.com" target="_blank">chatGPT account</a>,
+					go to <strong>Settings</strong> > <strong>Data Controls</strong>, and
+					click <strong>Export</strong>.
+				</li>
+				<li>
+					Confirm the export request. You’ll receive an email with a download
+					link.
+				</li>
+				<li>Click the link to download your data as a ZIP file.</li>
+				<li>
+					Extract the ZIP file, which will create a folder named
+					<code>conversations</code>.
+				</li>
+				<li>
+					Inside the folder, you’ll find several files, including
+					<code>conversations.json</code>, which contains all your
+					conversations.
+				</li>
+			</ul>
+		</div>
+
+		<!-- Step 2 -->
+		<div class="section">
+			<div class="step">
+				Step 2: Convert <code>conversations.json</code> Into Individual Files
+			</div>
+
+			<ul>
+				<li>Select the <code>conversations.json</code> file:</li>
+			</ul>
+
+			<div class="fileUploadRow">
+				<label for="fileInput" class="custom-button">select file</label>
+				<input
+					type="file"
+					id="fileInput"
+					accept=".json"
+					onchange="displayFileName()"
+				/>
+				<div id="selectedFile"></div>
+			</div>
+			<p>
+				You can choose from several types of file formats to save your
+				conversations in. If you want to import your conversation files into a
+				note taking and organizing app, then click the link below to see which
+				file types the most popular of those apps accept.
+			</p>
+			<div>
+				<span id="linkNoteApps" class="link-p" onclick="toggleNoteApps()"
+					>file formats overview</span
+				>
+			</div>
+			<div id="divNoteApps" class="hidden">
+				<div>
+					<p>
+						Here are 15 of the most popular note-taking and organizing apps,
+						along with the file formats they support for importing and exporting
+						notes, and whether they allow bulk import:
+					</p>
+
+					<hr />
+
+					<h3>1. <strong>Evernote</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>ENEX</strong> (Evernote's own export format)</li>
+								<li><strong>HTML</strong></li>
+								<li><strong>Microsoft OneNote (.onepkg)</strong></li>
+								<li><strong>PDF</strong></li>
+								<li><strong>Image files</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, supports bulk import via ENEX
+							files.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>ENEX</strong></li>
+								<li><strong>HTML</strong></li>
+								<li><strong>PDF</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>2. <strong>Microsoft OneNote</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>OneNote Package (.onepkg)</strong></li>
+								<li><strong>Evernote (.enex via OneNote Importer)</strong></li>
+								<li><strong>PDF</strong></li>
+								<li><strong>Image files</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, using the OneNote Importer
+							tool.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>OneNote Package (.onepkg)</strong></li>
+								<li><strong>PDF</strong></li>
+								<li><strong>XPS</strong></li>
+								<li><strong>MHT</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>3. <strong>Notion</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Markdown (.md)</strong></li>
+								<li><strong>CSV</strong></li>
+								<li><strong>HTML</strong></li>
+								<li><strong>Evernote (.enex)</strong></li>
+								<li><strong>Microsoft Word (.docx)</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, allows importing multiple files
+							and folders.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>Markdown and CSV</strong></li>
+								<li><strong>HTML</strong></li>
+								<li><strong>PDF</strong> (via print function)</li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>4. <strong>Bear</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Markdown (.md, .markdown)</strong></li>
+								<li><strong>Text files (.txt)</strong></li>
+								<li><strong>Evernote (.enex)</strong></li>
+								<li><strong>HTML</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, supports importing multiple
+							files simultaneously.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>Markdown</strong></li>
+								<li><strong>Text</strong></li>
+								<li><strong>PDF</strong></li>
+								<li><strong>HTML</strong></li>
+								<li><strong>DOCX</strong></li>
+								<li><strong>RTF</strong></li>
+								<li><strong>JPEG</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<em>Note: Bear is available only on macOS and iOS.</em>
+
+					<hr />
+
+					<h3>5. <strong>Apple Notes</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Evernote (.enex)</strong></li>
+								<li><strong>Text files</strong></li>
+								<li><strong>Microsoft Word documents</strong></li>
+								<li><strong>PDF</strong></li>
+								<li><strong>Images</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, via ENEX files for bulk import.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>PDF</strong> (through the print function)</li>
+								<li><strong>Text</strong> (copy-paste method)</li>
+							</ul>
+						</li>
+					</ul>
+
+					<em>Note: Limited export options; no native bulk export feature.</em>
+
+					<hr />
+
+					<h3>6. <strong>Google Keep</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li>
+									No official import function; notes must be created manually or
+									via synchronization.
+								</li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> No direct bulk import capability.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li>
+									<strong>Google Takeout</strong> (exports notes as HTML and
+									JSON files)
+								</li>
+							</ul>
+						</li>
+					</ul>
+
+					<em>Note: Import/export functionalities are limited.</em>
+
+					<hr />
+
+					<h3>7. <strong>Simplenote</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Plain text files (.txt)</strong></li>
+								<li><strong>Evernote (.enex)</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, supports bulk import via ENEX
+							files.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li>
+									<strong>ZIP Archive</strong> containing individual text files
+								</li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>8. <strong>Obsidian</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Markdown files</strong></li>
+								<li><strong>Plain text files</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, can import entire folders of
+							Markdown files.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>Markdown files</strong></li>
+								<li>
+									<strong>PDF</strong> (using export plugins or print function)
+								</li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>9. <strong>Joplin</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Evernote (.enex)</strong></li>
+								<li><strong>Markdown files</strong></li>
+								<li><strong>Plain text files</strong></li>
+								<li><strong>JSON</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, supports bulk import of notes
+							and notebooks.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>JEX</strong> (Joplin Export Format)</li>
+								<li><strong>Markdown</strong></li>
+								<li><strong>RAW files</strong></li>
+								<li><strong>PDF</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>10. <strong>GoodNotes</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>PDF</strong></li>
+								<li><strong>Images</strong></li>
+								<li>
+									<strong>Microsoft Office documents (.docx, .pptx)</strong>
+								</li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, multiple documents can be
+							imported at once.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>PDF</strong></li>
+								<li><strong>Images</strong></li>
+								<li><strong>GoodNotes Document (.goodnotes)</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<em
+						>Note: Primarily designed for handwritten notes on iOS devices.</em
+					>
+
+					<hr />
+
+					<h3>11. <strong>Notability</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>PDF</strong></li>
+								<li><strong>Images</strong></li>
+								<li><strong>Microsoft Office documents</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, supports importing multiple
+							files.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>PDF</strong></li>
+								<li><strong>RTF</strong></li>
+								<li><strong>Notability format</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<em>Note: Focused on iOS devices and supports handwritten notes.</em>
+
+					<hr />
+
+					<h3>12. <strong>Standard Notes</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Plain text files</strong></li>
+								<li><strong>Markdown files</strong></li>
+								<li><strong>ENEX files</strong> (using a converter)</li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, bulk import is supported.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>Encrypted backups</strong></li>
+								<li><strong>Plain text</strong></li>
+								<li><strong>JSON</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>13. <strong>Notejoy</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Evernote (.enex)</strong></li>
+								<li><strong>Markdown</strong></li>
+								<li><strong>HTML</strong></li>
+								<li><strong>Microsoft Word (.docx)</strong></li>
+								<li><strong>Text files</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, can import multiple notes and
+							notebooks.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>HTML</strong></li>
+								<li><strong>Markdown</strong></li>
+								<li><strong>Text files</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<h3>14. <strong>Turtl</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Plain text files</strong></li>
+								<li><strong>Images</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Limited bulk import functionality.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>JSON</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<em>Note: Turtl emphasizes privacy and encryption.</em>
+
+					<hr />
+
+					<h3>15. <strong>Zoho Notebook</strong></h3>
+
+					<ul>
+						<li>
+							<strong>Import Formats:</strong>
+							<ul>
+								<li><strong>Evernote (.enex)</strong></li>
+								<li><strong>Text files</strong></li>
+								<li><strong>Images</strong></li>
+							</ul>
+						</li>
+						<li>
+							<strong>Bulk Import:</strong> Yes, supports bulk import via ENEX
+							files.
+						</li>
+						<li>
+							<strong>Export Formats:</strong>
+							<ul>
+								<li><strong>HTML</strong></li>
+								<li><strong>PDF</strong></li>
+							</ul>
+						</li>
+					</ul>
+
+					<hr />
+
+					<div class="summary">
+						<h3><strong>Summary:</strong></h3>
+						<ul>
+							<li>
+								<strong>Bulk Import Capability:</strong> Most of these apps
+								support bulk import, especially through formats like ENEX
+								(Evernote's export format), which is widely accepted for
+								transferring notes between applications.
+							</li>
+							<li>
+								<strong>Common Import Formats:</strong> ENEX, Markdown, Plain
+								Text, HTML, PDF, Images, and Microsoft Office documents.
+							</li>
+							<li>
+								<strong>Common Export Formats:</strong> PDF, Markdown, Plain
+								Text, HTML, and application-specific formats.
+							</li>
+						</ul>
+					</div>
+					<br />
+					<span id="hideNoteApps" class="link hidden" onclick="toggleNoteApps()"
+						>hide</span
+					>
+				</div>
+			</div>
+			<ul>
+				<li>Select the file format you want to convert to:</li>
+			</ul>
+
+			<div class="fileUploadRow">
+				<label>
+					<input type="radio" name="fileFormat" value="markdown" checked />
+					markdown
+				</label>
+				<label>
+					<input type="radio" name="fileFormat" value="enex" /> enex
+				</label>
+				<label>
+					<input type="radio" name="fileFormat" value="html" /> html
+				</label>
+			</div>
+			<ul>
+				<li>
+					Click <strong>convert</strong> and wait for the conversion process to
+					finish. Depending on the size of your archive, this could take some
+					time.
+				</li>
+				<li>
+					<strong>
+						Note that the conversion is done entirely locally on your device,
+						and none of your data is sent anywhere outside of your
+						device.</strong
+					>
+				</li>
+			</ul>
+
+			<div class="fileUploadRow">
+				<button
+					id="convertButton"
+					class="custom-button inactive"
+					onclick="handleConvert()"
+					disabled
+				>
+					convert file
+				</button>
+			</div>
+
+			<div id="logDiv"></div>
+
+			<p>Once the process is complete, you’ll receive a ZIP file containing:</p>
+
+			<ul>
+				<li>
+					A folder named <code>conversations</code> with individual files for
+					each conversation.
+				</li>
+				<li>A <code>metaDataChange.csv</code> file.</li>
+			</ul>
+			<p>Save the zip file and extract its contents.</p>
+
+			<div class="fileUploadRow">
+				<button
+					id="downloadButton"
+					class="custom-button inactive"
+					onclick="downloadZip()"
+					disabled
+				>
+					save file
+				</button>
+			</div>
+		</div>
+
+		<!-- Step 3 -->
+		<div class="section">
+			<div class="step">
+				Step 3 (Optional): Update the Metadata of the Files
+			</div>
+			<p>
+				Each conversation in your chatGPT archive includes metadata, such as the
+				creation and last modified dates. However, when the
+				<code>conversations.json</code> file is converted into individual files,
+				the newly created files will have their creation and modification dates
+				set to the time of conversion, not the original dates.
+			</p>
+
+			<p>
+				Although the original dates are included within the content of each
+				file, searching or sorting by these dates might be difficult or
+				impossible when they are part of the file's content rather than its
+				metadata.
+			</p>
+
+			<p>
+				If you don’t need to search or sort by date, you can skip to Step 4. But
+				if you do need that functionality, then you can run a simple script that
+				uses the <code>metaDataChange.csv</code> file with the original creation
+				and modification dates to replace the metadata of the new conversation
+				files with those original data.
+			</p>
+
+			<p>
+				For step-by-step instructions on how to do this on your operating
+				system, click below:
+			</p>
+		</div>
+
+		<div>
+			<span id="linkWindows" class="link-p" onclick="toggleContent('Windows')"
+				>windows</span
+			>
+		</div>
+
+		<div id="divWindows" class="hidden">
+			<div>
+				<ul>
+					<li>
+						Open a simple text editor (e.g <em>Notepad</em>) and paste the
+						following:
+					</li>
+				</ul>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script1')">
+						copy
+					</button>
+					<pre><code id="script1" class="script"># Define the folder path where the markdown files are located 
+        $folderPath = "C:\Users\example\Desktop\conversations" 
+        # Define the path to the metaDataChange.csv file 
+        $csvPath = "C:\Users\example\Desktop\metaDataChange.csv" 
+        # Import the CSV file 
+        $csvData = Import-Csv -Path $csvPath 
+        # Loop through each row in the CSV 
+        foreach ($row in $csvData) { 
+            $filePath = Join-Path $folderPath $row.FileName 
+            # Check if the file exists 
+            if (Test-Path $filePath) { 
+                try { 
+                    # Convert creation and update time from the CSV to DateTime 
+                    $creationTime = [datetime]::ParseExact($row.CreationTime, "MM/dd/yyyy HH:mm:ss", $null) 
+                    $updateTime = [datetime]::ParseExact($row.ModifiedTime, "MM/dd/yyyy HH:mm:ss", $null) 
+                    # Update the creation time and last write time of the file 
+                    (Get-Item $filePath).CreationTime = $creationTime 
+                    (Get-Item $filePath).LastWriteTime = $updateTime 
+                    Write-Host "Updated CreationTime and LastWriteTime for $filePath to $creationTime and $updateTime" 
+                } catch { 
+                    # Log the error and skip to the next file 
+                    Write-Host "Skipping $filePath due to an error: $($_.Exception.Message)" 
+                    continue 
+                } 
+            } else { 
+                Write-Host "File not found: $filePath" 
+            } 
+        }
+    </code></pre>
+				</div>
+				<ul>
+					<li>
+						Then save the text file as
+						<code>updateCreationTime.ps1</code> in the folder where the
+						'conversations' folder and <code>metaDataChange.csv</code> are
+						located.
+					</li>
+					<li>
+						In the text you paste, make sure to update the
+						<code>$folderPath</code> and <code>$csvPath</code> so that they
+						point to the locations of the 'conversations' folder and the
+						<code>metaDataChange.csv</code> file on your computer.
+					</li>
+					<li>
+						Now open <em>Powershell</em> (<code>run as administrator</code>).
+						Navigate to the folder where the 'conversations' folder and the
+						<code>metaDataChange.csv</code> file are located (for example,
+						<code>cd C:\Users\example\Desktop\</code>), and run the script:
+						<code>./updateCreationTime.ps1</code>
+					</li>
+					<li>
+						When you now go to the 'conversations' folder, you will see that
+						<em>Date created</em> and <em>Date modified</em> have been changed
+						to match the original <code>CreationTime</code> and
+						<code>ModifiedTime</code> of each conversation in your
+						<em>chatGPT</em> archive.
+					</li>
+				</ul>
+				<span
+					id="hideWindows"
+					class="link hidden"
+					onclick="toggleContent('Windows')"
+					>hide</span
+				>
+				<br />
+			</div>
+		</div>
+		<div>
+			<span id="linkMac" class="link-p" onclick="toggleContent('Mac')"
+				>mac</span
+			>
+		</div>
+		<div id="divMac" class="hidden">
+			<div>
+				<p>
+					To perform the same task on macOS, you'll need to create a script that
+					reads the <code>metaDataChange.csv</code> file and updates the
+					creation and modification times of the files in the 'conversations'
+					folder accordingly. Below are the detailed steps, including the script
+					and instructions on how to execute it.
+				</p>
+
+				<h3>1. Install Command Line Tools</h3>
+
+				<p>
+					First, ensure that you have the necessary command line tools installed
+					on your Mac. Specifically, you need the
+					<code>SetFile</code> command, which is part of the Xcode Command Line
+					Tools.
+				</p>
+
+				<p>Open <strong>Terminal</strong> and run:</p>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script14')">
+						copy
+					</button>
+					<pre><code id="script14" class="bash">xcode-select --install</code></pre>
+				</div>
+
+				<p>Follow the prompts to complete the installation.</p>
+
+				<h3>2. Prepare the Script</h3>
+
+				<p>
+					You can use a Python script to perform this task. Below is the script
+					that reads the CSV file and updates the file metadata.
+				</p>
+
+				<h4>Script: <code>updateCreationTime.py</code></h4>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script2')">
+						copy
+					</button>
+					<pre><code id="script2" class="python">#!/usr/bin/env python3
+
+import csv
+import os
+import subprocess
+from datetime import datetime
+
+# Define the folder path where the markdown files are located
+folderPath = "/Users/your_username/Desktop/conversations"
+
+# Define the path to the metaDataChange.csv file
+csvPath = "/Users/your_username/Desktop/metaDataChange.csv"
+
+with open(csvPath, newline='') as csvfile:
+    csvReader = csv.DictReader(csvfile)
+    for row in csvReader:
+        fileName = row['FileName']
+        creationTimeStr = row['CreationTime']
+        modifiedTimeStr = row['ModifiedTime']
+
+        filePath = os.path.join(folderPath, fileName)
+        if os.path.isfile(filePath):
+            try:
+                # Parse the dates
+                creationTime = datetime.strptime(creationTimeStr, "%m/%d/%Y %H:%M:%S")
+                modifiedTime = datetime.strptime(modifiedTimeStr, "%m/%d/%Y %H:%M:%S")
+
+                # Format dates for SetFile and touch
+                creationTimeFormatted = creationTime.strftime("%m/%d/%Y %H:%M:%S")
+                modifiedTimeFormatted = modifiedTime.strftime("%Y%m%d%H%M.%S")
+
+                # Set the creation time using SetFile
+                subprocess.run(['SetFile', '-d', creationTimeFormatted, filePath])
+
+                # Set the modification time using touch
+                subprocess.run(['touch', '-t', modifiedTimeFormatted, filePath])
+
+                print(f"Updated CreationTime and ModifiedTime for {filePath} to {creationTimeStr} and {modifiedTimeStr}")
+
+            except Exception as e:
+                print(f"Skipping {filePath} due to an error: {e}")
+                continue
+        else:
+            print(f"File not found: {filePath}")
+</code></pre>
+				</div>
+
+				<p>
+					<strong>Note:</strong> Replace
+					<code>/Users/your_username/Desktop/</code> with the actual path where
+					your 'conversations' folder and <code>metaDataChange.csv</code> file
+					are located.
+				</p>
+
+				<h3>3. Save the Script</h3>
+
+				<ul>
+					<li>Open a text editor (like TextEdit or Visual Studio Code).</li>
+					<li>Paste the script into the editor.</li>
+					<li>
+						Save the file as <code>updateCreationTime.py</code> in the folder
+						where your 'conversations' folder and
+						<code>metaDataChange.csv</code> file are located.
+					</li>
+				</ul>
+
+				<h3>4. Update File Paths in the Script</h3>
+
+				<p>
+					Make sure to update the <code>folderPath</code> and
+					<code>csvPath</code> variables in the script to point to the correct
+					locations on your computer.
+				</p>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script15')">
+						copy
+					</button>
+					<pre><code id="script15" class="python">folderPath = "/Users/your_username/Desktop/conversations"
+csvPath = "/Users/your_username/Desktop/metaDataChange.csv"
+</code></pre>
+				</div>
+
+				<h3>5. Run the Script</h3>
+
+				<ul>
+					<li>Open <strong>Terminal</strong>.</li>
+					<li>Navigate to the directory where the script is located:</li>
+				</ul>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script16')">
+						copy
+					</button>
+					<pre><code id="script16" class="bash">cd /Users/your_username/Desktop/</code></pre>
+				</div>
+
+				<ul>
+					<li>Run the script:</li>
+				</ul>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script17')">
+						copy
+					</button>
+					<pre><code id="script17" class="bash">python3 updateCreationTime.py</code></pre>
+				</div>
+
+				<h3>6. Verify the Changes</h3>
+
+				<p>
+					After the script completes, navigate to your 'conversations' folder
+					and check the files. You should see that the
+					<strong>Date Created</strong> and
+					<strong>Date Modified</strong> metadata have been updated to match the
+					original times from your chatGPT archive.
+				</p>
+
+				<h3>Alternative: Using a Shell Script</h3>
+
+				<h4>Script: <code>updateCreationTime.sh</code></h4>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script3')">
+						copy
+					</button>
+					<pre><code id="script3" class="bash">#!/bin/bash
+
+# Define the folder path where the markdown files are located
+folderPath="/Users/your_username/Desktop/conversations"
+
+# Define the path to the metaDataChange.csv file
+csvPath="/Users/your_username/Desktop/metaDataChange.csv"
+
+# Read the CSV file and process each line
+IFS=","
+tail -n +2 "$csvPath" | while read -r FileName CreationTime ModifiedTime; do
+    filePath="$folderPath/$FileName"
+    # Check if the file exists
+    if [ -f "$filePath" ]; then
+        # Format dates for SetFile and touch commands
+        creationTimeFormatted=$(date -j -f "%m/%d/%Y %H:%M:%S" "$CreationTime" "+%m/%d/%Y %H:%M:%S")
+        modifiedTimeFormatted=$(date -j -f "%m/%d/%Y %H:%M:%S" "$ModifiedTime" "+%Y%m%d%H%M.%S")
+
+        # Set the creation time using SetFile
+        SetFile -d "$creationTimeFormatted" "$filePath"
+
+        # Set the modification time using touch
+        touch -t "$modifiedTimeFormatted" "$filePath"
+
+        echo "Updated CreationTime and ModifiedTime for $filePath to $CreationTime and $ModifiedTime"
+    else
+        echo "File not found: $filePath"
+    fi
+done
+</code></pre>
+				</div>
+
+				<h4>Steps to Run the Shell Script</h4>
+
+				<ul>
+					<li>
+						Save the script as <code>updateCreationTime.sh</code> in the
+						appropriate folder.
+					</li>
+					<li>
+						Update the <code>folderPath</code> and
+						<code>csvPath</code> variables.
+					</li>
+					<li>Make the script executable:</li>
+				</ul>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script20')">
+						copy
+					</button>
+					<pre><code id="script20" class="bash">chmod +x updateCreationTime.sh</code></pre>
+				</div>
+
+				<ul start="4">
+					<li>Run the script:</li>
+				</ul>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script21')">
+						copy
+					</button>
+					<pre><code id="script21" class="bash">./updateCreationTime.sh</code></pre>
+				</div>
+
+				<h3>Additional Notes</h3>
+
+				<ul>
+					<li>
+						<strong>Date Formats:</strong> Ensure that the date formats in your
+						<code>metaDataChange.csv</code> file match the formats expected by
+						the script (<code>"%m/%d/%Y %H:%M:%S"</code>).
+					</li>
+					<li>
+						<strong>File Permissions:</strong> If you encounter permission
+						issues, you may need to adjust the permissions of your files or run
+						the script with appropriate privileges.
+					</li>
+					<li>
+						<strong>Dependencies:</strong>
+						<ul>
+							<li>
+								The <code>SetFile</code> command is essential for changing the
+								creation date and is part of the macOS Developer Tools.
+							</li>
+							<li>
+								The <code>touch</code> command is used to update the
+								modification date.
+							</li>
+						</ul>
+					</li>
+					<li>
+						<strong>Verification:</strong> After running the script, you can
+						verify the file metadata using Finder or the
+						<code>stat</code> command in Terminal.
+					</li>
+				</ul>
+				<span id="hideMac" class="link hidden" onclick="toggleContent('Mac')"
+					>hide</span
+				><br />
+			</div>
+		</div>
+		<div>
+			<span id="linkLinux" class="link-p" onclick="toggleContent('Linux')"
+				>linux</span
+			>
+		</div>
+		<div id="divLinux" class="hidden">
+			<div>
+				<p>
+					To perform the same task on Linux, you'll need to create a script that
+					reads the
+					<code>metaDataChange.csv</code> file and updates the modification
+					times of the files in the 'conversations' folder accordingly. Please
+					note that changing the file creation time (also known as "birth time")
+					is not generally supported or possible on most Linux filesystems.
+					However, we can update the modification time.
+				</p>
+
+				<h3>1. Prepare the Script</h3>
+
+				<p>
+					You can use a Python script to perform this task. Below is the script
+					that reads the CSV file and updates the file modification times.
+				</p>
+
+				<h4>Script: <code>updateModificationTime.py</code></h4>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script4')">
+						copy
+					</button>
+					<pre><code id="script4" class="python">#!/usr/bin/env python3
+
+import csv
+import os
+import time
+from datetime import datetime
+
+# Define the folder path where the markdown files are located
+folderPath = "/home/your_username/Desktop/conversations"
+
+# Define the path to the metaDataChange.csv file
+csvPath = "/home/your_username/Desktop/metaDataChange.csv"
+
+with open(csvPath, newline='') as csvfile:
+    csvReader = csv.DictReader(csvfile)
+    for row in csvReader:
+        fileName = row['FileName']
+        modifiedTimeStr = row['ModifiedTime']
+
+        filePath = os.path.join(folderPath, fileName)
+        if os.path.isfile(filePath):
+            try:
+                # Parse the modified time
+                modifiedTime = datetime.strptime(modifiedTimeStr, "%m/%d/%Y %H:%M:%S")
+                # Convert to a timestamp
+                modTimeTimestamp = modifiedTime.timestamp()
+                # Update the modification time
+                os.utime(filePath, (modTimeTimestamp, modTimeTimestamp))
+                print(f"Updated ModifiedTime for {filePath} to {modifiedTimeStr}")
+
+            except Exception as e:
+                print(f"Skipping {filePath} due to an error: {e}")
+                continue
+        else:
+            print(f"File not found: {filePath}")
+</code></pre>
+				</div>
+
+				<p>
+					<strong>Note:</strong> Replace
+					<code>/home/your_username/Desktop/</code> with the actual path where
+					your 'conversations' folder and <code>metaDataChange.csv</code> file
+					are located.
+				</p>
+
+				<h3>2. Save the Script</h3>
+
+				<ul>
+					<li>Open a text editor (like Gedit, Nano, or Visual Studio Code).</li>
+					<li>Paste the script into the editor.</li>
+					<li>
+						Save the file as <code>updateModificationTime.py</code> in the
+						folder where your 'conversations' folder and
+						<code>metaDataChange.csv</code> file are located.
+					</li>
+				</ul>
+
+				<h3>3. Update File Paths in the Script</h3>
+
+				<p>
+					Make sure to update the <code>folderPath</code> and
+					<code>csvPath</code> variables in the script to point to the correct
+					locations on your computer.
+				</p>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script5')">
+						copy
+					</button>
+					<pre><code id="script5" class="python">folderPath = "/home/your_username/Desktop/conversations"
+csvPath = "/home/your_username/Desktop/metaDataChange.csv"
+</code></pre>
+				</div>
+
+				<h3>4. Run the Script</h3>
+
+				<ul>
+					<li>Open a terminal.</li>
+					<li>Navigate to the directory where the script is located:</li>
+				</ul>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script6')">
+						copy
+					</button>
+					<pre><code id="script6" class="bash">cd /home/your_username/Desktop/</code></pre>
+				</div>
+
+				<ul>
+					<li>Make the script executable (optional):</li>
+				</ul>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script7')">
+						copy
+					</button>
+					<pre><code id="script7" class="bash">chmod +x updateModificationTime.py</code></pre>
+				</div>
+
+				<ul>
+					<li>Run the script:</li>
+				</ul>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script8')">
+						copy
+					</button>
+					<pre><code id="script8" class="bash">./updateModificationTime.py</code></pre>
+				</div>
+
+				<p>Or, if you didn't make it executable:</p>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script9')">
+						copy
+					</button>
+					<pre><code id="script9" class="bash">python3 updateModificationTime.py</code></pre>
+				</div>
+
+				<h3>5. Verify the Changes</h3>
+
+				<p>
+					After the script completes, navigate to your 'conversations' folder
+					and check the files. You should see that the
+					<strong>Modification Time</strong> has been updated to match the times
+					from your <code>metaDataChange.csv</code> file.
+				</p>
+
+				<h4>Explanation of the Script</h4>
+
+				<ul>
+					<li>
+						<strong>Reading the CSV File:</strong> The script uses Python's
+						<code>csv</code> module to read the
+						<code>metaDataChange.csv</code> file.
+					</li>
+					<li>
+						<strong>Parsing Dates:</strong> Dates from the CSV are parsed using
+						<code>datetime.strptime</code> with the format
+						<code>"%m/%d/%Y %H:%M:%S"</code>.
+					</li>
+					<li>
+						<strong>Updating Modification Time:</strong> The
+						<code>os.utime</code> function is used to update the modification
+						time of each file.
+					</li>
+					<li>
+						<strong>Error Handling:</strong> The script includes try-except
+						blocks to handle any exceptions and continues processing the next
+						file if an error occurs.
+					</li>
+				</ul>
+
+				<h4>Alternative: Using a Shell Script</h4>
+
+				<p>
+					If you prefer using a shell script, here is an alternative approach:
+				</p>
+
+				<h4>Script: <code>updateModificationTime.sh</code></h4>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script10')">
+						copy
+					</button>
+					<pre><code id="script10" class="bash">#!/bin/bash
+
+# Define the folder path where the markdown files are located
+folderPath="/home/your_username/Desktop/conversations"
+
+# Define the path to the metaDataChange.csv file
+csvPath="/home/your_username/Desktop/metaDataChange.csv"
+
+# Read the CSV file and process each line
+tail -n +2 "$csvPath" | while IFS=',' read -r FileName CreationTime ModifiedTime; do
+    filePath="$folderPath/$FileName"
+    # Check if the file exists
+    if [ -f "$filePath" ]; then
+        # Convert ModifiedTime to the format expected by touch
+        modTimeFormatted=$(date -d "$ModifiedTime" +"%Y%m%d%H%M.%S")
+        # Update the modification time using touch
+        touch -t "$modTimeFormatted" "$filePath"
+        echo "Updated ModifiedTime for $filePath to $ModifiedTime"
+    else
+        echo "File not found: $filePath"
+    fi
+done
+</code></pre>
+				</div>
+
+				<h4>Steps to Run the Shell Script</h4>
+
+				<ul>
+					<li>
+						Save the script as <code>updateModificationTime.sh</code> in the
+						appropriate folder.
+					</li>
+					<li>
+						Update the <code>folderPath</code> and
+						<code>csvPath</code> variables.
+					</li>
+					<li>Make the script executable:</li>
+				</ul>
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script23')">
+						copy
+					</button>
+					<pre><code id="script23" class="bash">chmod +x updateModificationTime.sh</code></pre>
+				</div>
+
+				<ol start="4">
+					<li>Run the script:</li>
+				</ol>
+
+				<div class="code-block">
+					<button class="copy-button" onclick="copyToClipboard('script11')">
+						copy
+					</button>
+					<pre><code id="script11" class="bash">./updateCreationTime.sh</code></pre>
+				</div>
+
+				<h3>Additional Notes</h3>
+
+				<ul>
+					<li>
+						<strong>Date Formats:</strong> Ensure that the date formats in your
+						<code>metaDataChange.csv</code> file match the formats expected by
+						the script (<code>"%m/%d/%Y %H:%M:%S"</code>).
+					</li>
+					<li>
+						<strong>Changing Creation Time:</strong> Most Linux filesystems do
+						not support changing the file creation time. The scripts provided
+						only update the modification time.
+					</li>
+					<li>
+						<strong>Dependencies:</strong> The <code>touch</code> and
+						<code>date</code> commands are used in the shell script to update
+						the modification time.
+					</li>
+					<li>
+						<strong>Verification:</strong> After running the script, you can
+						verify the file metadata using your file manager or the
+						<code>stat</code> command in the terminal.
+					</li>
+				</ul>
+
+				<h3>Summary</h3>
+
+				<p>
+					By following these steps, you can bulk modify the modification times
+					of files on Linux to match the times specified in your
+					<code>metaDataChange.csv</code> file.
+				</p>
+				<span
+					id="hideLinux"
+					class="link hidden"
+					onclick="toggleContent('Linux')"
+					>hide</span
+				>
+				<br />
+			</div>
+		</div>
+
+		<!-- Step 4 -->
+		<div class="section">
+			<div class="step">
+				Step 4: Import the Conversation Files Into a Note-Taking or Markdown App
+			</div>
+			<p>
+				You now have a folder containing all your conversations as individual
+				files, either in <strong>.md</strong>, <strong>.enex</strong>, or
+				<strong>.html</strong> format. If you updated the metadata in Step 3,
+				each file will also have the original creation and modification dates.
+				If not, those dates are still represented inside the content of each
+				file.
+			</p>
+
+			<p>
+				To import your files into a note-taking app, follow the specific
+				instructions for your chosen app. Many apps have different import
+				methods or support specific file types, so check which format works best
+				for your app.
+			</p>
+
+			<p>
+				If your goal is to have a simple and convenient way to read and search
+				your archive, you can use the
+				<a href="https://obsidian.md/" target="_blank">Obsidian app</a> (<a
+					href="https://www.techradar.com/reviews/obsidian"
+					target="_blank"
+					>review #1</a
+				>,
+				<a href="https://www.pcmag.com/reviews/obsidian" target="_blank"
+					>review #2</a
+				>).
+			</p>
+
+			<ul>
+				<li>
+					Download and install
+					<a href="https://obsidian.md/download" target="_blank">Obsidian</a>.
+				</li>
+				<li>
+					Select <strong>Create a New Vault</strong>, name it e.g. "chatGPT",
+					and create a new folder within the vault, e.g., "conversations".
+				</li>
+				<li>
+					Navigate to the folder where you extracted your conversation files in
+					Markdown format.
+				</li>
+				<li>
+					Select all the files, or just the files you want to include, and paste
+					them into the new "Conversations Archive" folder in Obsidian.
+				</li>
+			</ul>
+		</div>
+
+		<!-- Step 5 -->
+		<div class="section">
+			<div class="step">Step 5: Search Your Conversations in Obsidian</div>
+			<ul>
+				<li>
+					In the Obsidian menubar, click the <strong>Search</strong> icon at the
+					top.
+				</li>
+				<li>
+					Type a word or phrase. Results will instantly appear with the keyword
+					highlighted and grouped by conversation.
+				</li>
+				<li>
+					For more advanced search options, click the link below to view
+					Obsidian’s search tutorial.
+				</li>
+			</ul>
+		</div>
+
+		<div>
+			<span id="linkSearch" class="link-p" onclick="toggleSearch()"
+				>view search tutorial</span
+			>
+		</div>
+		<div id="divSearch" class="hidden">
+			<h2 id="part1">Part 1: Obsidian's Built-in Search Functionality</h2>
+
+			<h3 id="basic-search">Basic Text Search</h3>
+			<p>To begin searching in Obsidian:</p>
+			<ul>
+				<li>
+					<strong>Open the Search Pane</strong>: Click on the magnifying glass
+					icon in the left sidebar, or press
+					<code>Ctrl+Shift+F</code> (Windows/Linux) or
+					<code>Cmd+Shift+F</code> (Mac).
+				</li>
+				<li>
+					<strong>Enter Your Search Term</strong>: Type any word or phrase into
+					the search bar at the top.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: Typing <code>project</code> will return
+						all notes containing the word "project".
+					</li>
+				</ul>
+				<li>
+					<strong>View Results</strong>: The search results will display below,
+					showing snippets of where the search term appears in your notes.
+				</li>
+			</ul>
+
+			<h3 id="search-operators">Search Operators</h3>
+			<p>
+				Obsidian's search supports several operators to refine your results:
+			</p>
+			<ul>
+				<li>
+					<strong>AND (<code>term1 term2</code>)</strong>: Finds notes
+					containing both terms.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>project deadline</code> returns
+						notes containing both "project" and "deadline".
+					</li>
+				</ul>
+				<li>
+					<strong>OR (<code>term1 OR term2</code>)</strong>: Finds notes
+					containing either term.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>urgent OR important</code> returns
+						notes containing either "urgent" or "important".
+					</li>
+				</ul>
+				<li>
+					<strong>NOT (<code>-term</code>)</strong>: Excludes notes containing
+					the term.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>meeting -notes</code> returns notes
+						that contain "meeting" but do not contain "notes".
+					</li>
+				</ul>
+				<li>
+					<strong>Exact Match (<code>"phrase"</code>)</strong>: Finds the exact
+					phrase.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>"project deadline"</code> returns
+						notes containing the exact phrase "project deadline".
+					</li>
+				</ul>
+				<li>
+					<strong>Sort search results by date</strong>
+				</li>
+				<p>
+					Sorting search results by date is only meaningful if you modified the
+					<code>CreationTime</code> and <code>ModifiedTime</code> of the
+					conversation files so that they match the original metadata from
+					chatGPT. How to do this was described in the tutorial linked to in
+					step 3.
+				</p>
+			</ul>
+
+			<h3 id="advanced-syntax">Advanced Search Syntax</h3>
+			<p>Obsidian allows for more advanced searches using special syntax:</p>
+			<ul>
+				<li>
+					<strong>Tag Search (<code>tag:#tagname</code>)</strong>: Finds notes
+					with a specific tag.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>tag:#work</code> returns notes
+						tagged with <code>#work</code>.
+					</li>
+				</ul>
+				<li>
+					<strong>File Path (<code>path:foldername/</code>)</strong>: Searches
+					within a specific folder.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>path:Projects/</code> searches notes
+						within the "Projects" folder.
+					</li>
+				</ul>
+				<li>
+					<strong>File Name (<code>file:filename</code>)</strong>: Searches for
+					notes with specific file names.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>file:Meeting Notes</code> finds
+						notes with "Meeting Notes" in the file name.
+					</li>
+				</ul>
+				<li>
+					<strong>Content Type (<code>content:"text"</code>)</strong>: Searches
+					within the content of the notes.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>content:"Obsidian"</code> finds
+						notes containing "Obsidian" in their content.
+					</li>
+				</ul>
+				<li>
+					<strong>Regular Expressions (<code>/regex/</code>)</strong>: Advanced
+					pattern matching.
+				</li>
+				<ul>
+					<li>
+						<strong>Example</strong>: <code>/\bproject\b/</code> matches the
+						word "project" as a whole word.
+					</li>
+				</ul>
+			</ul>
+
+			<h3 id="practical-examples">Practical Examples</h3>
+			<ul>
+				<li><strong>Find Notes with Multiple Tags</strong>:</li>
+				<ul>
+					<li><strong>Query</strong>: <code>tag:#work tag:#urgent</code></li>
+					<li>
+						<strong>Explanation</strong>: Finds notes tagged with both
+						<code>#work</code> and <code>#urgent</code>.
+					</li>
+				</ul>
+				<li><strong>Exclude a Folder from Search</strong>:</li>
+				<ul>
+					<li><strong>Query</strong>: <code>project -path:Archive/</code></li>
+					<li>
+						<strong>Explanation</strong>: Finds notes containing "project" but
+						excludes any in the "Archive" folder.
+					</li>
+				</ul>
+				<li><strong>Combine Operators</strong>:</li>
+				<ul>
+					<li>
+						<strong>Query</strong>:
+						<code>(tag:#personal OR tag:#journal) -tag:#private</code>
+					</li>
+					<li>
+						<strong>Explanation</strong>: Finds notes tagged with
+						<code>#personal</code> or <code>#journal</code>, but not tagged with
+						<code>#private</code>.
+					</li>
+				</ul>
+			</ul>
+
+			<h2 id="part2">Part 2: Advanced Searches with the Dataview Plugin</h2>
+			<h3 id="what-is-dataview">What is Dataview?</h3>
+			<p>
+				Dataview is a powerful <em>Obsidian</em> plugin that allows you to query
+				your notes like a database. It enables you to dynamically create views,
+				tables, lists, and more based on the content of your notes and their
+				metadata. This allows for advanced searches, organization, and filtering
+				of notes in ways that go beyond Obsidian's built-in search
+				functionality.
+			</p>
+			<h3 id="installing-dataview">Installing Dataview</h3>
+			<ul>
+				<li>
+					<strong>Open Settings</strong>: Click on the gear icon in the left
+					sidebar.
+				</li>
+				<li>
+					<strong>Navigate to Community Plugins</strong>: Select "Community
+					Plugins" from the settings menu.
+				</li>
+				<li>
+					<strong>Turn Off Safe Mode</strong>: If prompted, disable safe mode to
+					allow third-party plugins.
+				</li>
+				<li>
+					<strong>Browse Plugins</strong>: Click on "Browse" to open the plugin
+					list.
+				</li>
+				<li>
+					<strong>Search for Dataview</strong>: Type "Dataview" into the search
+					bar.
+				</li>
+				<li>
+					<strong>Install and Enable</strong>: Click "Install" and then "Enable"
+					to activate the Dataview plugin.
+				</li>
+			</ul>
+			<h3 id="dataview-basics">Dataview Query Language Basics</h3>
+			<p>
+				You can perform advanced searches and create dynamic views with Dataview
+				by writing a query in any note. A Dataview query is placed inside triple
+				backticks and the term <code>dataview</code> should be specified after
+				the first set of backticks, like this:
+			</p>
+			<pre><code class="script">```dataview YOUR QUERY HERE ```</code></pre>
+			<p>
+				The query results will be rendered directly in the note. Dataview
+				supports two primary types of queries:
+			</p>
+			<ul>
+				<li><strong>List Query</strong>: Displays a list of matching notes.</li>
+				<ul>
+					<li><strong>Syntax</strong>: <code>LIST FROM source</code></li>
+				</ul>
+				<li>
+					<strong>Table Query</strong>: Displays matching notes in a table
+					format, including specified fields.
+				</li>
+				<ul>
+					<li>
+						<strong>Syntax</strong>:
+						<code>TABLE field1, field2 FROM source</code>
+					</li>
+				</ul>
+			</ul>
+			<h3 id="advanced-queries">Creating Advanced Queries</h3>
+			<h4>Two Types of Metadata</h4>
+			<p>
+				It is important to understand the two types of metadata that can be
+				accessed when performing searches:
+			</p>
+			<ul>
+				<li>
+					<strong>File Metadata</strong>: Refers to metadata related to the
+					individual markdown files, as managed by the operating system (e.g.,
+					creation and modification dates of the file).
+				</li>
+				<li>
+					<strong>YAML Metadata</strong>: Refers to user-defined metadata
+					included in the YAML frontmatter of a note. This can include fields
+					like <code>CreationTime</code>, <code>ModifiedTime</code>,
+					<code>participants</code>, and other data relevant to the content.
+				</li>
+			</ul>
+			<p>
+				Since the <em>chatGPT</em> conversations were converted into markdown
+				files during the archiving process, the file creation and modification
+				times might all be the same, making them less useful for searches.
+				However, the original metadata (like <code>CreationTime</code> and
+				<code>ModifiedTime</code>) is preserved in the YAML frontmatter of each
+				note. Dataview allows you to use these fields to filter your searches.
+			</p>
+			<h4 id="filtering-searches-by-yaml-fields">
+				Filtering Searches by YAML Fields
+			</h4>
+			<p>
+				To filter results using YAML metadata fields, such as
+				<code>CreationTime</code> and <code>ModifiedTime</code>, you can use a
+				simple Dataview query that specifies the field values in your YAML
+				frontmatter. Here’s how you can search for notes based on the metadata
+				fields:
+			</p>
+			<h4>Example Queries</h4>
+			<h5>1. Search for All Conversations Created After a Specific Date</h5>
+			<div class="code-block">
+				<button class="copy-button" onclick="copyToClipboard('code1')">
+					copy
+				</button>
+				<pre><code id="code1" class="script">```dataview
+TABLE file.name, create_time, file.content
+FROM "folder_name"
+WHERE create_time >= date(2023-10-10)
+```</code></pre>
+			</div>
+			<p>
+				<strong>Explanation:</strong> This query searches for all notes in the
+				folder <code>folder_name</code> where the
+				<code>CreationTime</code> field (from the YAML frontmatter) is after
+				October 10, 2023. The table displays the file name, creation time, and
+				content of the note.
+			</p>
+			<h5>2. Search for Conversations Updated Before a Specific Date</h5>
+			<div class="code-block">
+				<button class="copy-button" onclick="copyToClipboard('code2')">
+					copy
+				</button>
+				<pre><code id="code2" class="script">```dataview
+TABLE file.name, update_time, file.content
+FROM "folder_name"
+WHERE update_time < date(2024-06-01)
+```</code></pre>
+			</div>
+			<p>
+				<strong>Explanation:</strong> This query looks for all notes with an
+				<code>ModifiedTime</code> earlier than June 1, 2024. It shows the file
+				name, update time, and note content in a table format.
+			</p>
+			<h5>3. Search for Conversations Tagged with a Specific Keyword</h5>
+			<div class="code-block">
+				<button class="copy-button" onclick="copyToClipboard('code3')">
+					copy
+				</button>
+				<pre><code id="code3" class="script">```dataview
+TABLE file.name, create_time, tags
+FROM "folder_name"
+WHERE contains(tags, "important")
+```</code></pre>
+			</div>
+			<p>
+				<strong>Explanation:</strong> This query searches for all notes with the
+				tag <code>important</code> and displays the file name, creation time,
+				and tags in a table format.
+			</p>
+			<h5>4. Search for Conversations with Specific Participants</h5>
+			<div class="code-block">
+				<button class="copy-button" onclick="copyToClipboard('code4')">
+					copy
+				</button>
+				<pre><code id="code4" class="script">```dataview
+TABLE file.name, participants, file.content
+FROM "folder_name"
+WHERE contains(participants, "user")
+```</code></pre>
+			</div>
+			<p>
+				<strong>Explanation:</strong> This query searches for conversations
+				where the participant is "user", and shows the file name, participants,
+				and content in a table.
+			</p>
+			<h5>5. Combining Multiple Conditions (AND, OR)</h5>
+			<div class="code-block">
+				<button class="copy-button" onclick="copyToClipboard('code5')">
+					copy
+				</button>
+				<pre><code id="code5" class="script">```dataview
+TABLE file.name, create_time, participants
+FROM "folder_name"
+WHERE create_time >= date(2023-01-01) AND contains(participants, "user")
+```</code></pre>
+			</div>
+			<p>
+				<strong>Explanation:</strong> This query returns all notes that have a
+				<code>CreationTime</code> after January 1, 2023, and contain "user" as a
+				participant. It combines conditions using <code>AND</code>.
+			</p>
+
+			<h4>Explanation of Query Fields</h4>
+			<ul>
+				<li>
+					<strong
+						><code>table file.name, create_time, file.content</code></strong
+					>: Specifies which fields to display in the table (e.g., file name,
+					creation time, content).
+				</li>
+				<li>
+					<strong><code>FROM "folder_name"</code></strong
+					>: Specifies the folder from which to pull notes (replace
+					<code>folder_name</code> with the actual folder where your notes are
+					stored).
+				</li>
+				<li>
+					<strong><code>WHERE create_time >= date(2023-10-10)</code></strong
+					>: Filters notes where the <code>CreationTime</code> is after a
+					specified date. You can also use <code><</code>, <code>></code>, and
+					<code>AND</code> or <code>OR</code> to combine conditions.
+				</li>
+				<li>
+					<strong><code>contains(field, "value")</code></strong
+					>: Filters notes where a field (such as <code>tags</code> or
+					<code>participants</code>) contains a specific value.
+				</li>
+			</ul>
+			<h4>Conclusion</h4>
+			<p>
+				By leveraging Dataview's ability to query fields in the YAML
+				frontmatter, you can create powerful and flexible searches for your
+				notes. Whether you're filtering by creation time, tags, participants, or
+				any other metadata, Dataview gives you the flexibility to view your
+				Obsidian vault like a dynamic database.
+			</p>
+			<br />
+			<span id="hideSearch" class="link hidden" onclick="toggleSearch()"
+				>hide</span
+			>
+		</div>
+		<div id="messageBox" class="message-box" style="display: none"></div>
+
+		<!-- JavaScript Code -->
+		<script>
+			let generatedZipContent = null
+
+			function displayFileName() {
+				const fileInput = document.getElementById('fileInput')
+				const selectedFileDiv = document.getElementById('selectedFile')
+				const convertButton = document.getElementById('convertButton')
+				const downloadButton = document.getElementById('downloadButton')
+
+				if (fileInput.files.length > 0) {
+					selectedFileDiv.textContent = `${fileInput.files[0].name}`
+
+					convertButton.classList.remove('inactive')
+					convertButton.disabled = false
+				} else {
+					selectedFileDiv.textContent = ''
+
+					convertButton.classList.add('inactive')
+					convertButton.disabled = true
+
+					downloadButton.classList.add('inactive')
+					downloadButton.disabled = true
+				}
+			}
+
+			function sanitizeFilename(title) {
+				let sanitized = title.replace(/[\/\\?%*:|"<>]/g, '-')
+
+				sanitized = sanitized.replace(/-+/g, '-')
+
+				sanitized = sanitized.replace(/\s+/g, ' ')
+
+				sanitized = sanitized.trim().replace(/^-+|-+$/g, '')
+
+				return sanitized
+			}
+
+			function formatTimestampToYAMLDate(timestamp) {
+				if (timestamp != null) {
+					const date = new Date(timestamp * 1000)
+					const yyyy = date.getFullYear().toString()
+					const mm = (date.getMonth() + 1).toString().padStart(2, '0')
+					const dd = date.getDate().toString().padStart(2, '0')
+					return `${yyyy}-${mm}-${dd}`
+				} else {
+					return null
+				}
+			}
+
+			function formatTimestampToFileSystemFormat(timestamp) {
+				if (timestamp != null) {
+					const date = new Date(timestamp * 1000)
+					const mm = (date.getMonth() + 1).toString().padStart(2, '0')
+					const dd = date.getDate().toString().padStart(2, '0')
+					const yyyy = date.getFullYear()
+					const hours = date.getHours().toString().padStart(2, '0')
+					const minutes = date.getMinutes().toString().padStart(2, '0')
+					const seconds = date.getSeconds().toString().padStart(2, '0')
+					return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds}`
+				} else {
+					return null
+				}
+			}
+
+			function formatTimestampToISO(timestamp) {
+				if (timestamp != null) {
+					const date = new Date(timestamp * 1000)
+					return date.toISOString()
+				} else {
+					return null
+				}
+			}
+
+			function escapeForCsv(value) {
+				if (value.includes(',') || value.includes('"')) {
+					value = `"${value.replace(/"/g, '""')}"`
+				}
+				return value
+			}
+
+			function downloadZip() {
+				const a = document.createElement('a')
+				a.href = URL.createObjectURL(generatedZipContent)
+				a.download = 'conversations.zip'
+				document.body.appendChild(a)
+				a.click()
+				document.body.removeChild(a)
+			}
+
+			function copyToClipboard(codeId) {
+				const codeElement = document.getElementById(codeId).textContent
+				const messageBox = document.getElementById('messageBox')
+
+				navigator.clipboard
+					.writeText(codeElement)
+					.then(() => {
+						showMessage('Code copied to clipboard!', 'success')
+					})
+					.catch((err) => {
+						showMessage('Failed to copy text: ' + err, 'error')
+					})
+			}
+
+			function showMessage(message, type) {
+				const messageBox = document.getElementById('messageBox')
+				messageBox.textContent = message
+				messageBox.className = `message-box ${type}`
+				messageBox.style.display = 'block'
+
+				setTimeout(() => {
+					messageBox.style.display = 'none'
+				}, 1000)
+			}
+
+			function logMessage(message) {
+				const logDiv = document.getElementById('logDiv')
+				const p = document.createElement('p')
+				p.textContent = message
+
+				p.style.margin = '0.15em 0'
+				p.style.fontSize = '0.8em'
+				p.style.fontFamily = "Consolas, 'Courier New', Courier, monospace"
+				logDiv.appendChild(p)
+			}
+
+			function escapeXML(str) {
+				return str.replace(/[<>&'"]/g, function (c) {
+					switch (c) {
+						case '<':
+							return '&lt;'
+						case '>':
+							return '&gt;'
+						case '&':
+							return '&amp;'
+						case "'":
+							return '&apos;'
+						case '"':
+							return '&quot;'
+						default:
+							return c
+					}
+				})
+			}
+
+			function decodeHTML(str) {
+				var txt = document.createElement('textarea')
+				txt.innerHTML = str
+				return txt.value
+			}
+
+			function escapeHTML(str) {
+				return str.replace(/[&<>"']/g, function (m) {
+					switch (m) {
+						case '&':
+							return '&amp;'
+						case '<':
+							return '&lt;'
+						case '>':
+							return '&gt;'
+						case '"':
+							return '&quot;'
+						case "'":
+							return '&#39;'
+						default:
+							return m
+					}
+				})
+			}
+
+			function escapeMarkdown(text) {
+				return text
+					.replace(/\\/g, '\\\\')
+					.replace(/\*/g, '\\*')
+					.replace(/_/g, '\\_')
+					.replace(/#/g, '\\#')
+					.replace(/\[/g, '\\[')
+					.replace(/\]/g, '\\]')
+					.replace(/\(/g, '\\(')
+					.replace(/\)/g, '\\)')
+					.replace(/>/g, '\\>')
+					.replace(/-/g, '\\-')
+					.replace(/\+/g, '\\+')
+					.replace(/=/g, '\\=')
+					.replace(/`/g, '\\`')
+					.replace(/~/g, '\\~')
+					.replace(/\|/g, '\\|')
+			}
+
+			function convertToMarkdown() {
+				const TIMEOUT_DURATION = 4 * 60 * 1000
+				let timer
+
+				function startTimeout() {
+					timer = setTimeout(() => {
+						logMessage(
+							'Error: Conversion process took too long and was terminated.'
+						)
+
+						convertButton.classList.remove('inactive')
+						convertButton.disabled = false
+					}, TIMEOUT_DURATION)
+				}
+
+				function clearTimeoutHandler() {
+					clearTimeout(timer)
+				}
+
+				try {
+					convertButton.classList.add('inactive')
+					convertButton.disabled = true
+					const logDiv = document.getElementById('logDiv')
+					logDiv.style.display = 'block'
+
+					logMessage('Starting conversion process...')
+					startTimeout()
+
+					const fileInput = document.getElementById('fileInput')
+					const downloadButton = document.getElementById('downloadButton')
+
+					if (!fileInput.files.length) {
+						logMessage('No file selected!')
+						alert('Please select the conversations.json file.')
+						clearTimeoutHandler()
+						return
+					}
+
+					const file = fileInput.files[0]
+					logMessage('File selected: ' + file.name)
+
+					const reader = new FileReader()
+
+					reader.onload = function (event) {
+						logMessage('File loaded successfully, parsing JSON...')
+						let jsonData
+
+						try {
+							jsonData = JSON.parse(event.target.result)
+						} catch (e) {
+							logMessage('Error parsing JSON: ' + e)
+							alert('Invalid JSON structure.')
+							clearTimeoutHandler()
+							return
+						}
+
+						if (!Array.isArray(jsonData)) {
+							logMessage('JSON does not contain an array')
+							alert('Invalid JSON structure.')
+							clearTimeoutHandler()
+							return
+						}
+
+						logMessage('JSON parsed successfully.')
+						const zip = new JSZip()
+						const folder = zip.folder('conversations')
+
+						let csvContent = 'FileName,CreationTime,ModifiedTime\n'
+						let filenamesSet = new Set()
+
+						logMessage('Processing each conversation...')
+						jsonData.forEach((conversation, index) => {
+							let title = conversation.title || `Conversation ${index + 1}`
+							let sanitizedTitle = sanitizeFilename(title)
+
+							let participantsSet = new Set()
+							let modelsSet = new Set()
+							let hasCitations = false
+							let isComplete = true
+
+							let conversationContent = ''
+
+							const mapping = conversation.mapping
+							Object.keys(mapping).forEach((key) => {
+								const node = mapping[key]
+								const message = node.message
+
+								if (message && message.content && message.content.parts) {
+									const role = message.author.role
+									participantsSet.add(role)
+
+									if (message.metadata && message.metadata.model_slug) {
+										modelsSet.add(message.metadata.model_slug)
+									}
+
+									if (
+										message.metadata &&
+										message.metadata.citations &&
+										message.metadata.citations.length > 0
+									) {
+										hasCitations = true
+									}
+
+									if (message.status !== 'finished_successfully') {
+										isComplete = false
+									}
+
+									const roleCapitalized =
+										role.charAt(0).toUpperCase() + role.slice(1)
+									const contentParts = message.content.parts.join('\n')
+									conversationContent += `**${roleCapitalized}:** ${contentParts}\n\n`
+								}
+							})
+
+							let yamlFrontMatter = `---
+title: "${title}"
+create_time: "${formatTimestampToISO(conversation.create_time)}"
+update_time: "${formatTimestampToISO(conversation.update_time)}"
+conversation_id: "${conversation.conversation_id || conversation.id || ''}"
+participants:\n`
+
+							yamlFrontMatter += `is_complete: ${isComplete}\n`
+
+							yamlFrontMatter += `is_archived: ${
+								conversation.is_archived || false
+							}\n`
+
+							yamlFrontMatter += `tags:\n  - example-tag\n`
+
+							participantsSet.forEach((participant) => {
+								yamlFrontMatter += `  - ${participant}\n`
+							})
+
+							if (modelsSet.size > 0) {
+								yamlFrontMatter += `model_slug:\n`
+								modelsSet.forEach((model) => {
+									yamlFrontMatter += `  - ${model}\n`
+								})
+							}
+
+							yamlFrontMatter += `citations: ${hasCitations}\n`
+
+							yamlFrontMatter += `---\n\n`
+
+							let markdownContent = yamlFrontMatter + conversationContent
+
+							const filename = `${sanitizedTitle}.md`
+
+							let creationTimeCSV = formatTimestampToFileSystemFormat(
+								conversation.create_time
+							)
+							let updateTimeCSV = formatTimestampToFileSystemFormat(
+								conversation.update_time
+							)
+
+							const escapedFilename = escapeForCsv(filename)
+
+							csvContent += `${escapedFilename},${creationTimeCSV},${updateTimeCSV}\n`
+
+							folder.file(filename, markdownContent)
+						})
+
+						logMessage('File conversion completed.')
+						logMessage('Adding metaDataChange.csv to zip file...')
+						zip.file('metaDataChange.csv', csvContent)
+
+						logMessage('Generating zip file, which may take a while...')
+
+						let progressElement = document.getElementById('progressLog')
+						if (!progressElement) {
+							progressElement = document.createElement('p')
+							progressElement.id = 'progressLog'
+
+							progressElement.style.margin = '0.15em 0'
+							progressElement.style.fontSize = '0.8em'
+							progressElement.style.fontFamily =
+								"Consolas, 'Courier New', Courier, monospace"
+
+							logDiv.appendChild(progressElement)
+						}
+
+						zip
+							.generateAsync(
+								{
+									type: 'blob',
+									compression: 'STORE',
+								},
+								function updateCallback(metadata) {
+									let percentage = Math.round(metadata.percent)
+									progressElement.textContent = `Zip generation progress: ${percentage}%`
+								}
+							)
+							.then(function (content) {
+								generatedZipContent = content
+
+								logMessage('Zip file ready for download.')
+								downloadButton.classList.remove('inactive')
+								downloadButton.disabled = false
+								convertButton.classList.remove('inactive')
+								convertButton.disabled = false
+								clearTimeoutHandler()
+							})
+					}
+
+					logMessage('Reading file as text...')
+					reader.readAsText(file)
+				} catch (error) {
+					logMessage('Unexpected error: ' + error)
+
+					convertButton.classList.remove('inactive')
+					convertButton.disabled = false
+					clearTimeoutHandler()
+				}
+			}
+
+			function convertToEvernote() {
+				const TIMEOUT_DURATION = 4 * 60 * 1000
+				let timer
+
+				function startTimeout() {
+					timer = setTimeout(() => {
+						logMessage(
+							'Error: Conversion process took too long and was terminated.'
+						)
+						convertButton.classList.remove('inactive')
+						convertButton.disabled = false
+					}, TIMEOUT_DURATION)
+				}
+
+				function clearTimeoutHandler() {
+					clearTimeout(timer)
+				}
+
+				try {
+					convertButton.classList.add('inactive')
+					convertButton.disabled = true
+
+					logMessage('Starting conversion to ENEX for Evernote...')
+					startTimeout()
+
+					const fileInput = document.getElementById('fileInput')
+					const downloadButton = document.getElementById('downloadButton')
+
+					if (!fileInput.files.length) {
+						logMessage('No file selected!')
+						alert('Please select the conversations.json file.')
+						clearTimeoutHandler()
+						return
+					}
+
+					const file = fileInput.files[0]
+					logMessage('File selected: ' + file.name)
+
+					const reader = new FileReader()
+
+					reader.onload = function (event) {
+						try {
+							logMessage('File loaded successfully, parsing JSON...')
+							let jsonData
+
+							try {
+								jsonData = JSON.parse(event.target.result)
+							} catch (e) {
+								logMessage('Error parsing JSON: ' + e.message)
+								alert('Invalid JSON structure.')
+								clearTimeoutHandler()
+								return
+							}
+
+							if (!Array.isArray(jsonData)) {
+								logMessage('JSON does not contain an array')
+								alert('Invalid JSON structure.')
+								clearTimeoutHandler()
+								return
+							}
+
+							logMessage('JSON parsed successfully.')
+							const zip = new JSZip()
+							const folder = zip.folder('conversations')
+
+							logMessage('Creating metaDataChange.csv...')
+							logMessage('Processing each conversation...')
+
+							let csvContent = 'FileName,CreationTime,ModifiedTime\n'
+
+							jsonData.forEach((conversation, index) => {
+								try {
+									let title = conversation.title || `Conversation ${index + 1}`
+									let sanitizedTitle = sanitizeFilename(title)
+									let creationTime = new Date(
+										conversation.create_time * 1000
+									).toISOString()
+									let updateTime = new Date(
+										conversation.update_time * 1000
+									).toISOString()
+
+									const escapedFilename = escapeForCsv(`${sanitizedTitle}.enex`)
+
+									let creationTimeCSV = formatTimestampToFileSystemFormat(
+										conversation.create_time
+									)
+									let updateTimeCSV = formatTimestampToFileSystemFormat(
+										conversation.update_time
+									)
+									csvContent += `${escapedFilename},${creationTimeCSV},${updateTimeCSV}\n`
+
+									let participantsSet = new Set()
+									let modelsSet = new Set()
+									let hasCitations = false
+									let isComplete = true
+
+									const mapping = conversation.mapping
+									let messageContentArray = []
+
+									Object.keys(mapping).forEach((key) => {
+										const node = mapping[key]
+										const message = node.message
+
+										if (message && message.content && message.content.parts) {
+											const role = message.author.role
+											participantsSet.add(role)
+
+											if (message.metadata && message.metadata.model_slug) {
+												modelsSet.add(message.metadata.model_slug)
+											}
+
+											if (
+												message.metadata &&
+												message.metadata.citations &&
+												message.metadata.citations.length > 0
+											) {
+												hasCitations = true
+											}
+
+											if (message.status !== 'finished_successfully') {
+												isComplete = false
+											}
+
+											const content = message.content.parts.join('\n').trim()
+
+											if (role === 'system' && content === '') {
+												return
+											}
+
+											const roleCapitalized =
+												role.charAt(0).toUpperCase() + role.slice(1)
+											const roleStyle =
+												role === 'user'
+													? 'background-color: #e9effd;'
+													: role === 'assistant'
+													? 'background-color: #ffffff;'
+													: 'background-color: #f4f4f4; color: #666; font-style: italic;'
+
+											let processedContent = escapeXML(content)
+
+											processedContent = processedContent.replace(
+												/```([\s\S]*?)```/g,
+												function (match, codeBlock) {
+													return `<pre><code style="background-color: #f5f5f5; padding: 10px; border-radius: 5px; border: 1px solid #ddd;">${escapeXML(
+														codeBlock
+													)}</code></pre>`
+												}
+											)
+
+											processedContent = processedContent.replace(
+												/`([^`]+)`/g,
+												'<code>$1</code>'
+											)
+
+											processedContent = processedContent.replace(
+												/(https?:\/\/[^\s]+)/g,
+												'<a href="$1" target="_blank">$1</a>'
+											)
+
+											processedContent = processedContent.replace(
+												/\n/g,
+												'<br/>'
+											)
+
+											let messageHtml = `
+                  <div style="margin-left: 20px; padding: 10px; border-left: 3px solid #dcdcdc; ${roleStyle}">
+                    <p><strong>${roleCapitalized}:</strong><br/>${processedContent}</p>
+                  </div>
+                `
+
+											messageContentArray.push(messageHtml)
+										}
+									})
+
+									let enexContent = `<?xml version="1.0" encoding="UTF-8"?>
+<en-export export-date="${new Date().toISOString()}" application="Evernote/JSZip">
+  <note>
+    <title>${escapeXML(title)}</title>
+    <content><![CDATA[<?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+    <en-note style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
+    <h1 style="color: #2c3e50;">${escapeXML(title)}</h1>
+    <p><strong>Created:</strong> ${creationTime}</p>
+    <p><strong>Last Modified:</strong> ${updateTime}</p>
+    <hr />
+    `
+
+									enexContent += messageContentArray.join('')
+
+									enexContent += `
+    <hr />
+    <p><strong>Participants:</strong> ${Array.from(participantsSet).join(
+			', '
+		)}</p>
+    <p><strong>Model Used:</strong> ${Array.from(modelsSet).join(', ')}</p>
+    <p><strong>Has Citations:</strong> ${hasCitations ? 'Yes' : 'No'}</p>
+    <p><strong>Conversation Complete:</strong> ${isComplete ? 'Yes' : 'No'}</p>
+    </en-note>
+    ]]></content>
+    <created>${creationTime}</created>
+    <updated>${updateTime}</updated>
+    <tag>chatGPT</tag>
+    <tag>conversation</tag>
+  </note>
+</en-export>`
+
+									folder.file(`${sanitizedTitle}.enex`, enexContent)
+								} catch (e) {
+									logMessage(
+										`Error processing conversation ${index + 1}: ${e.message}`
+									)
+								}
+							})
+
+							logMessage('Adding metaDataChange.csv to zip file...')
+							zip.file('metaDataChange.csv', csvContent)
+
+							logMessage('File conversion completed.')
+							logMessage('Generating zip file, which may take a while...')
+
+							let progressElement = document.getElementById('progressLog')
+							if (!progressElement) {
+								progressElement = document.createElement('p')
+								progressElement.id = 'progressLog'
+
+								progressElement.style.margin = '0.15em 0'
+								progressElement.style.fontSize = '0.8em'
+								progressElement.style.fontFamily =
+									"Consolas, 'Courier New', Courier, monospace"
+
+								logDiv.appendChild(progressElement)
+							}
+
+							zip
+								.generateAsync(
+									{
+										type: 'blob',
+										compression: 'STORE',
+									},
+									function updateCallback(metadata) {
+										let percentage = Math.round(metadata.percent)
+										progressElement.textContent = `Zip generation progress: ${percentage}%`
+									}
+								)
+								.then(function (content) {
+									generatedZipContent = content
+
+									logMessage('Zip file ready for download.')
+									downloadButton.classList.remove('inactive')
+									downloadButton.disabled = false
+									convertButton.classList.remove('inactive')
+									convertButton.disabled = false
+									clearTimeoutHandler()
+								})
+								.catch((e) => {
+									logMessage('Error generating zip file: ' + e.message)
+									clearTimeoutHandler()
+								})
+						} catch (e) {
+							logMessage('Error during file conversion: ' + e.message)
+							clearTimeoutHandler()
+						}
+					}
+
+					logMessage('Reading file as text...')
+					reader.onerror = function (e) {
+						logMessage('Error reading file: ' + e.message)
+						clearTimeoutHandler()
+					}
+					reader.readAsText(file)
+				} catch (e) {
+					logMessage('Unexpected error: ' + e.message)
+					convertButton.classList.remove('inactive')
+					convertButton.disabled = false
+					clearTimeoutHandler()
+				}
+			}
+
+			function getOrderedMessages(mapping, currentNodeId) {
+				const orderedMessages = []
+
+				function traverse(nodeId) {
+					const node = mapping[nodeId]
+					if (node && node.message) {
+						traverseChildren(nodeId)
+						orderedMessages.push(node.message)
+					} else if (node) {
+						traverseChildren(nodeId)
+					}
+				}
+
+				function traverseChildren(nodeId) {
+					const node = mapping[nodeId]
+					if (node && node.children) {
+						node.children.forEach((childId) => {
+							traverse(childId)
+						})
+					}
+				}
+
+				traverse(currentNodeId)
+				return orderedMessages.reverse()
+			}
+
+			function convertToHTML() {
+				const TIMEOUT_DURATION = 4 * 60 * 1000
+				let timer
+
+				function startTimeout() {
+					timer = setTimeout(() => {
+						logMessage(
+							'Error: Conversion process took too long and was terminated.'
+						)
+						convertButton.classList.remove('inactive')
+						convertButton.disabled = false
+					}, TIMEOUT_DURATION)
+				}
+
+				function clearTimeoutHandler() {
+					clearTimeout(timer)
+				}
+
+				try {
+					convertButton.classList.add('inactive')
+					convertButton.disabled = true
+
+					logMessage('Starting conversion to HTML...')
+					startTimeout()
+
+					const fileInput = document.getElementById('fileInput')
+					const downloadButton = document.getElementById('downloadButton')
+
+					if (!fileInput.files.length) {
+						logMessage('No file selected!')
+						alert('Please select the conversations.json file.')
+						clearTimeoutHandler()
+						return
+					}
+
+					const file = fileInput.files[0]
+					logMessage('File selected: ' + file.name)
+
+					const reader = new FileReader()
+
+					reader.onload = function (event) {
+						try {
+							logMessage('File loaded successfully, parsing JSON...')
+							let jsonData
+
+							try {
+								jsonData = JSON.parse(event.target.result)
+							} catch (e) {
+								logMessage('Error parsing JSON: ' + e.message)
+								alert('Invalid JSON structure.')
+								clearTimeoutHandler()
+								return
+							}
+
+							if (!Array.isArray(jsonData)) {
+								logMessage('JSON does not contain an array')
+								alert('Invalid JSON structure.')
+								clearTimeoutHandler()
+								return
+							}
+
+							logMessage('JSON parsed successfully.')
+							const zip = new JSZip()
+							const folder = zip.folder('conversations')
+
+							logMessage('Creating metaDataChange.csv...')
+							logMessage('Processing each conversation...')
+
+							let csvContent = 'FileName,CreationTime,ModifiedTime\n'
+
+							jsonData.forEach((conversation, index) => {
+								try {
+									let title = conversation.title || `Conversation ${index + 1}`
+									let sanitizedTitle = sanitizeFilename(title)
+									let creationTime = new Date(
+										conversation.create_time * 1000
+									).toISOString()
+									let updateTime = new Date(
+										conversation.update_time * 1000
+									).toISOString()
+
+									const escapedFilename = escapeForCsv(`${sanitizedTitle}.html`)
+
+									let creationTimeCSV = formatTimestampToFileSystemFormat(
+										conversation.create_time
+									)
+									let updateTimeCSV = formatTimestampToFileSystemFormat(
+										conversation.update_time
+									)
+									csvContent += `${escapedFilename},${creationTimeCSV},${updateTimeCSV}\n`
+
+									let participantsSet = new Set()
+									let modelsSet = new Set()
+									let hasCitations = false
+									let isComplete = true
+
+									const mapping = conversation.mapping
+									let messageHtmlArray = []
+
+									Object.keys(mapping).forEach((key) => {
+										const node = mapping[key]
+										const message = node.message
+
+										if (message && message.content && message.content.parts) {
+											const role = message.author.role
+											participantsSet.add(role)
+
+											if (message.metadata && message.metadata.model_slug) {
+												modelsSet.add(message.metadata.model_slug)
+											}
+
+											if (
+												message.metadata &&
+												message.metadata.citations &&
+												message.metadata.citations.length > 0
+											) {
+												hasCitations = true
+											}
+
+											if (message.status !== 'finished_successfully') {
+												isComplete = false
+											}
+
+											const content = message.content.parts.join('\n').trim()
+
+											if (role === 'system' && content === '') {
+												return
+											}
+
+											const roleClass =
+												role === 'user'
+													? 'user-message'
+													: role === 'assistant'
+													? 'assistant-message'
+													: 'system-message'
+
+											const roleCapitalized =
+												role.charAt(0).toUpperCase() + role.slice(1)
+
+											let processedContent = escapeHTML(content)
+
+											processedContent = processedContent.replace(
+												/```([\s\S]*?)```/g,
+												function (match, codeBlock) {
+													let codeContent = codeBlock
+													let language = ''
+
+													const firstLineEnd = codeContent.indexOf('\n')
+													if (firstLineEnd !== -1) {
+														const possibleLanguage = codeContent
+															.substring(0, firstLineEnd)
+															.trim()
+														if (/^[a-zA-Z0-9+#]+$/.test(possibleLanguage)) {
+															language = possibleLanguage
+															codeContent = codeContent.substring(
+																firstLineEnd + 1
+															)
+														}
+													}
+
+													codeContent = decodeHTML(codeContent)
+
+													const highlightedCode = hljs.highlightAuto(
+														codeContent,
+														language ? [language] : undefined
+													).value
+
+													return `<pre><code class="hljs ${language}">${highlightedCode}</code></pre>`
+												}
+											)
+
+											processedContent = processedContent.replace(
+												/`([^`]+)`/g,
+												'<code>$1</code>'
+											)
+
+											processedContent = processedContent.replace(
+												/(https?:\/\/[^\s]+)/g,
+												'<a href="$1" target="_blank">$1</a>'
+											)
+
+											processedContent = processedContent.replace(/\n/g, '<br>')
+
+											let messageHtml = `
+            <div class="message ${roleClass}">
+              <div class="message-header">${roleCapitalized}:</div>
+              <div class="message-content">${processedContent}</div>
+            </div>
+            `
+
+											messageHtmlArray.push(messageHtml)
+										}
+									})
+
+									let htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHTML(title)}</title>
+  <meta name="created" content="${creationTime}">
+  <meta name="updated" content="${updateTime}">
+  <style>
+  body {
+    font-family: 'Arial', sans-serif;
+    background-color: #ffffff;
+    color: #333;
+    margin: 0;
+    padding: 0;
+    line-height: 1.6;
+  }
+
+  .container {
+    max-width: 800px;
+    margin: 2em auto;
+    padding: 1em;
+    background-color: #ffffff;
+    border-radius: 8px;
+  }
+
+  .message {
+    display: flex;
+    margin-bottom: 1.5em;
+    padding: 1em;
+    border-radius: 8px;
+  }
+
+  .user-message {
+  	display: flex;
+  	flex-direction: column;
+    background-color: #e9effd;
+    align-self: flex-end;
+  }
+
+  .assistant-message {
+    display: flex;
+  	flex-direction: column;
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+  }
+
+  .system-message {
+    display: flex;
+  	flex-direction: column;
+    background-color: #f6f6f6;
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 0.5em;
+    margin-bottom: 1.5em;
+  }
+
+  .message-content {
+    padding: 0;
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .message-header {
+    font-weight: bold;
+    margin-bottom: 0.5em;
+    color: #555;
+  }
+
+  pre {
+    background-color: #f6f6f6;
+    padding: 1em;
+    border-radius: 8px;
+    overflow-x: auto;
+    font-family: 'Courier New', Courier, monospace;
+    border: 1px solid #e0e0e0;
+    margin-top: 1em;
+  }
+
+  code {
+    background-color: #f6f6f6;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', Courier, monospace;
+  }
+
+  h1 {
+    font-size: 1.6em;
+    text-align: center;
+    margin-bottom: 1em;
+    color: #333;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 2em 0;
+  }
+
+  .meta-info {
+    color: #999;
+    text-align: center;
+    margin-bottom: 2em;
+  }
+
+  a {
+    color: #007bff;
+    text-decoration: none;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>${escapeHTML(title)}</h1>
+    <div class="meta-info">
+      <p><strong>Created:</strong> ${creationTime}</p>
+      <p><strong>Last Modified:</strong> ${updateTime}</p>
+      <p><strong>Participants:</strong> ${Array.from(participantsSet).join(
+				', '
+			)}</p>
+      <p><strong>Model Used:</strong> ${Array.from(modelsSet).join(', ')}</p>
+      <p><strong>Has Citations:</strong> ${hasCitations ? 'Yes' : 'No'}</p>
+      <p><strong>Conversation Complete:</strong> ${
+				isComplete ? 'Yes' : 'No'
+			}</p>
+    </div>
+`
+
+									htmlContent += messageHtmlArray.join('')
+
+									htmlContent += `
+    </div>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
+    </body>
+  </html>
+  `
+
+									folder.file(`${sanitizedTitle}.html`, htmlContent)
+								} catch (e) {
+									logMessage(
+										`Error processing conversation ${index + 1}: ${e.message}`
+									)
+								}
+							})
+
+							logMessage('Adding metaDataChange.csv to zip file...')
+							zip.file('metaDataChange.csv', csvContent)
+
+							logMessage('File conversion completed.')
+							logMessage('Generating zip file, which may take a while...')
+
+							let progressElement = document.getElementById('progressLog')
+							if (!progressElement) {
+								progressElement = document.createElement('p')
+								progressElement.id = 'progressLog'
+
+								progressElement.style.margin = '0.15em 0'
+								progressElement.style.fontSize = '0.8em'
+								progressElement.style.fontFamily =
+									"Consolas, 'Courier New', Courier, monospace"
+
+								logDiv.appendChild(progressElement)
+							}
+
+							zip
+								.generateAsync(
+									{
+										type: 'blob',
+										compression: 'STORE',
+									},
+									function updateCallback(metadata) {
+										let percentage = Math.round(metadata.percent)
+										progressElement.textContent = `Zip generation progress: ${percentage}%`
+									}
+								)
+								.then(function (content) {
+									generatedZipContent = content
+
+									logMessage('Zip file ready for download.')
+									downloadButton.classList.remove('inactive')
+									downloadButton.disabled = false
+									convertButton.classList.remove('inactive')
+									convertButton.disabled = false
+									clearTimeoutHandler()
+								})
+								.catch(function (e) {
+									logMessage('Error generating zip file: ' + e.message)
+									clearTimeoutHandler()
+								})
+						} catch (e) {
+							logMessage('Error during file conversion: ' + e.message)
+							clearTimeoutHandler()
+						}
+					}
+
+					logMessage('Reading file as text...')
+					reader.onerror = function (e) {
+						logMessage('Error reading file: ' + e.message)
+						clearTimeoutHandler()
+					}
+					reader.readAsText(file)
+				} catch (e) {
+					logMessage('Unexpected error: ' + e.message)
+					convertButton.classList.remove('inactive')
+					convertButton.disabled = false
+					clearTimeoutHandler()
+				}
+			}
+
+			function handleConvert() {
+				try {
+					downloadButton.classList.add('inactive')
+					downloadButton.disabled = true
+
+					let logDiv = document.getElementById('logDiv')
+
+					if (logDiv) {
+						logDiv.innerHTML = ''
+					} else {
+						logDiv = document.createElement('div')
+						logDiv.id = 'logDiv'
+						logDiv.style.display = 'block'
+						document.body.appendChild(logDiv)
+					}
+
+					logDiv.style.display = 'block'
+					logMessage('Initializing...')
+
+					const selectedFormat = document.querySelector(
+						'input[name="fileFormat"]:checked'
+					).value
+
+					logMessage(`Selected format: ${selectedFormat}`)
+
+					if (selectedFormat === 'markdown') {
+						convertToMarkdown()
+					} else if (selectedFormat === 'enex') {
+						convertToEvernote()
+					} else if (selectedFormat === 'html') {
+						convertToHTML()
+					} else {
+						throw new Error('Invalid format selected.')
+					}
+				} catch (e) {
+					logMessage(`Error during conversion process: ${e.message}`)
+					alert(`An error occurred: ${e.message}`)
+				}
+			}
+
+			function toggleNoteApps() {
+				const linkElement = document.getElementById(`linkNoteApps`)
+				const divElement = document.getElementById(`divNoteApps`)
+				const hideElement = document.getElementById(`hideNoteApps`)
+
+				if (divElement.classList.contains('hidden')) {
+					divElement.classList.remove('hidden')
+					linkElement.textContent = `file formats overview`
+					linkElement.classList.remove('link-p')
+					linkElement.classList.add('link-h2')
+					hideElement.classList.remove('hidden')
+				} else {
+					divElement.classList.add('hidden')
+					linkElement.textContent = `file formats overview`
+					linkElement.classList.remove('link-h2')
+					linkElement.classList.add('link-p')
+					hideElement.classList.add('hidden')
+				}
+			}
+
+			function toggleSearch() {
+				const linkElement = document.getElementById(`linkSearch`)
+				const divElement = document.getElementById(`divSearch`)
+				const hideElement = document.getElementById(`hideSearch`)
+
+				if (divElement.classList.contains('hidden')) {
+					divElement.classList.remove('hidden')
+					linkElement.textContent = `Obsidian Search Tutorial`
+					linkElement.classList.remove('link-p')
+					linkElement.classList.add('link-h2')
+					hideElement.classList.remove('hidden')
+				} else {
+					divElement.classList.add('hidden')
+					linkElement.textContent = `view search tutorial`
+					linkElement.classList.remove('link-h2')
+					linkElement.classList.add('link-p')
+					hideElement.classList.add('hidden')
+				}
+			}
+
+			function toggleContent(platform) {
+				const linkElement = document.getElementById(`link${platform}`)
+				const divElement = document.getElementById(`div${platform}`)
+				const hideElement = document.getElementById(`hide${platform}`)
+
+				if (divElement.classList.contains('hidden')) {
+					divElement.classList.remove('hidden')
+					linkElement.textContent = `${platform} MetaData Modification Tutorial`
+					linkElement.classList.remove('link-p')
+					linkElement.classList.add('link-h2')
+					hideElement.classList.remove('hidden')
+				} else {
+					divElement.classList.add('hidden')
+					linkElement.textContent = platform.toLowerCase()
+					linkElement.classList.remove('link-h2')
+					linkElement.classList.add('link-p')
+					hideElement.classList.add('hidden')
+				}
+			}
+
+			document.addEventListener('DOMContentLoaded', function () {
+				const convertButton = document.getElementById('convertButton')
+				const downloadButton = document.getElementById('downloadButton')
+				const fileInput = document.getElementById('fileInput')
+
+				convertButton.classList.add('inactive')
+				convertButton.disabled = true
+
+				downloadButton.classList.add('inactive')
+				downloadButton.disabled = true
+
+				fileInput.addEventListener('change', displayFileName)
+			})
+		</script>
+	</body>
+</html>
